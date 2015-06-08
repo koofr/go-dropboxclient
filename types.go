@@ -8,6 +8,7 @@ import (
 )
 
 type DropboxFile struct {
+	IsDir    bool   `json:"is_dir"`
 	Bytes    int64  `json:"bytes"`
 	Modified string `json:"modified"`
 	ETag     string
