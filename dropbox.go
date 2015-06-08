@@ -33,6 +33,22 @@ func NewDropbox(authToken string) (dropbox *Dropbox) {
 	}
 }
 
+func (c *Dropbox) Metadata(path string) (info *DropboxFile, err error) {
+	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+		Method:         "GET",
+		Path:           "/1/metadata/auto/" + path,
+		ExpectedStatus: []int{http.StatusOK},
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &info,
+	})
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (c *Dropbox) Info(path string) (info *DropboxFile, err error) {
 	res, err := c.ContentHTTPClient.Request(&httpclient.RequestData{
 		Method:         "HEAD",
