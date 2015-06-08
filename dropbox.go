@@ -117,6 +117,10 @@ func (c *Dropbox) CommitChunkedUpload(path string, uploadId string, overwrite bo
 	params.Set("upload_id", uploadId)
 	params.Set("overwrite", fmt.Sprintf("%t", overwrite))
 
+	if overwrite {
+		params.Set("autorename", "false")
+	}
+
 	_, err = c.ContentHTTPClient.Request(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/1/commit_chunked_upload/auto/" + path,
