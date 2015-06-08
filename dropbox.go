@@ -15,15 +15,6 @@ type Dropbox struct {
 	ContentHTTPClient *httpclient.HTTPClient
 }
 
-type ChunkedUploadResult struct {
-	UploadId string `json:"upload_id"`
-	Offset   int64  `json:"offset"`
-}
-
-type CommitChunkedUploadResult struct {
-	Path string `json:"path"`
-}
-
 func NewDropbox(authToken string) (dropbox *Dropbox) {
 	apiBaseUrl, _ := url.Parse("https://api.dropbox.com")
 	contentBaseUrl, _ := url.Parse("https://api-content.dropbox.com")

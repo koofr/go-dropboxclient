@@ -14,6 +14,15 @@ type DropboxFile struct {
 	Reader   io.ReadCloser
 }
 
+type ChunkedUploadResult struct {
+	UploadId string `json:"upload_id"`
+	Offset   int64  `json:"offset"`
+}
+
+type CommitChunkedUploadResult struct {
+	Path string `json:"path"`
+}
+
 func DropboxFileFromHeaders(path string, headers http.Header) (file *DropboxFile) {
 	metadata := headers.Get("x-dropbox-metadata")
 
