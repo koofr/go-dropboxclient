@@ -112,14 +112,11 @@ func (c *Dropbox) ChunkedUpload(uploadId string, offset int64, reader io.Reader)
 	return
 }
 
-func (c *Dropbox) CommitChunkedUpload(path string, uploadId string, overwrite bool) (res *CommitChunkedUploadResult, err error) {
+func (c *Dropbox) CommitChunkedUpload(path string, uploadId string, overwrite bool, autorename bool) (res *CommitChunkedUploadResult, err error) {
 	params := make(url.Values)
 	params.Set("upload_id", uploadId)
 	params.Set("overwrite", fmt.Sprintf("%t", overwrite))
-
-	if overwrite {
-		params.Set("autorename", "false")
-	}
+	params.Set("autorename", fmt.Sprintf("%t", autorename))
 
 	_, err = c.ContentHTTPClient.Request(&httpclient.RequestData{
 		Method:         "POST",
