@@ -1,6 +1,7 @@
 package dropboxclient
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/koofr/go-httpclient"
 	"github.com/koofr/go-ioutils"
@@ -15,17 +16,17 @@ type Dropbox struct {
 	ContentHTTPClient *httpclient.HTTPClient
 }
 
-func NewDropbox(authToken string) (dropbox *Dropbox) {
+func NewDropbox(accessToken string) (dropbox *Dropbox) {
 	apiBaseUrl, _ := url.Parse("https://api.dropbox.com")
 	contentBaseUrl, _ := url.Parse("https://api-content.dropbox.com")
 
 	apiHttpClient := httpclient.New()
 	apiHttpClient.BaseURL = apiBaseUrl
-	apiHttpClient.Headers.Set("Authorization", "Bearer "+authToken)
+	apiHttpClient.Headers.Set("Authorization", "Bearer "+accessToken)
 
 	contentHttpClient := httpclient.New()
 	contentHttpClient.BaseURL = contentBaseUrl
-	contentHttpClient.Headers.Set("Authorization", "Bearer "+authToken)
+	contentHttpClient.Headers.Set("Authorization", "Bearer "+accessToken)
 
 	return &Dropbox{
 		ApiHTTPClient:     apiHttpClient,
@@ -33,13 +34,39 @@ func NewDropbox(authToken string) (dropbox *Dropbox) {
 	}
 }
 
-func (c *Dropbox) Metadata(path string) (info *DropboxFile, err error) {
+func (c *Dropbox) addApiArg(req *httpclient.RequestData, arg interface{}) error {
+	argJsonBytes, err := json.Marshal(arg)
+	if err != nil {
+		return err
+	}
+
+	if req.Headers == nil {
+		req.Headers = make(http.Header)
+	}
+
+	req.Headers.Set("Dropbox-API-Arg", string(argJsonBytes))
+
+	return nil
+}
+
+func (c *Dropbox) getApiResult(res *http.Response, result interface{}) error {
+	resultJson := res.Header.Get("Dropbox-API-Result")
+
+	err := json.Unmarshal([]byte(resultJson), result)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Dropbox) GetSpaceUsage() (result *SpaceUsage, err error) {
 	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
-		Method:         "GET",
-		Path:           "/1/metadata/auto/" + path,
+		Method:         "POST",
+		Path:           "/2/users/get_space_usage",
 		ExpectedStatus: []int{http.StatusOK},
 		RespEncoding:   httpclient.EncodingJSON,
-		RespValue:      &info,
+		RespValue:      &result,
 	})
 
 	if err != nil {
@@ -49,24 +76,142 @@ func (c *Dropbox) Metadata(path string) (info *DropboxFile, err error) {
 	return
 }
 
-func (c *Dropbox) Info(path string) (info *DropboxFile, err error) {
-	res, err := c.ContentHTTPClient.Request(&httpclient.RequestData{
-		Method:         "HEAD",
-		Path:           "/1/files/auto/" + path,
+func (c *Dropbox) GetMetadata(arg *GetMetadataArg) (result *Metadata, err error) {
+	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/get_metadata",
 		ExpectedStatus: []int{http.StatusOK},
-		RespConsume:    true,
+		ReqEncoding:    httpclient.EncodingJSON,
+		ReqValue:       arg,
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &result,
 	})
 
 	if err != nil {
 		return
 	}
 
-	info = DropboxFileFromHeaders(path, res.Header)
+	return
+}
+
+func (c *Dropbox) ListFolder(arg *ListFolderArg) (result *ListFolderResult, err error) {
+	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/list_folder",
+		ExpectedStatus: []int{http.StatusOK},
+		ReqEncoding:    httpclient.EncodingJSON,
+		ReqValue:       arg,
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &result,
+	})
+
+	if err != nil {
+		return
+	}
 
 	return
 }
 
-func (c *Dropbox) Get(path string, span *ioutils.FileSpan) (file *DropboxFile, err error) {
+func (c *Dropbox) CreateFolder(arg *CreateFolderArg) (result *Metadata, err error) {
+	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/create_folder",
+		ExpectedStatus: []int{http.StatusOK},
+		ReqEncoding:    httpclient.EncodingJSON,
+		ReqValue:       arg,
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &result,
+	})
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *Dropbox) Delete(arg *DeleteArg) (result *Metadata, err error) {
+	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/delete",
+		ExpectedStatus: []int{http.StatusOK},
+		ReqEncoding:    httpclient.EncodingJSON,
+		ReqValue:       arg,
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &result,
+	})
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *Dropbox) Copy(arg *RelocationArg) (result *Metadata, err error) {
+	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/copy",
+		ExpectedStatus: []int{http.StatusOK},
+		ReqEncoding:    httpclient.EncodingJSON,
+		ReqValue:       arg,
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &result,
+	})
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *Dropbox) Move(arg *RelocationArg) (result *Metadata, err error) {
+	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/move",
+		ExpectedStatus: []int{http.StatusOK},
+		ReqEncoding:    httpclient.EncodingJSON,
+		ReqValue:       arg,
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &result,
+	})
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *Dropbox) Download(arg *DownloadArg) (reader io.ReadCloser, result *Metadata, err error) {
+	req := &httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/download",
+		ExpectedStatus: []int{http.StatusOK},
+	}
+
+	if err = c.addApiArg(req, arg); err != nil {
+		return
+	}
+
+	res, err := c.ContentHTTPClient.Request(req)
+
+	if err != nil {
+		return
+	}
+
+	result = &Metadata{}
+
+	if err = c.getApiResult(res, result); err != nil {
+		res.Body.Close()
+		return nil, nil, err
+	}
+
+	return res.Body, result, err
+}
+
+func (c *Dropbox) DownloadV1(path string, span *ioutils.FileSpan) (result *DownloadV1, err error) {
 	req := httpclient.RequestData{
 		Method:         "GET",
 		Path:           "/1/files/auto/" + path,
@@ -84,25 +229,25 @@ func (c *Dropbox) Get(path string, span *ioutils.FileSpan) (file *DropboxFile, e
 		return
 	}
 
-	file = DropboxFileFromHeaders(path, res.Header)
-	file.Reader = res.Body
+	contentLength, _ := strconv.ParseInt(res.Header.Get("Content-Length"), 10, 0)
+
+	result = &DownloadV1{
+		ContentLength: contentLength,
+		ETag:          res.Header.Get("ETag"),
+		Reader:        res.Body,
+	}
 
 	return
 }
 
-func (c *Dropbox) ChunkedUpload(uploadId string, offset int64, reader io.Reader) (res *ChunkedUploadResult, err error) {
-	params := make(url.Values)
-	if uploadId != "" {
-		params.Set("upload_id", uploadId)
-	}
-	if offset != 0 {
-		params.Set("offset", strconv.FormatInt(offset, 10))
-	}
+func (c *Dropbox) UploadSessionStart(reader io.Reader) (res *UploadSessionStartResult, err error) {
+	headers := make(http.Header)
+	headers.Set("Content-Type", "application/octet-stream")
 
 	_, err = c.ContentHTTPClient.Request(&httpclient.RequestData{
-		Method:         "PUT",
-		Path:           "/1/chunked_upload",
-		Params:         params,
+		Method:         "POST",
+		Path:           "/2/files/upload_session/start",
+		Headers:        headers,
 		ReqReader:      reader,
 		ExpectedStatus: []int{http.StatusOK},
 		RespEncoding:   httpclient.EncodingJSON,
@@ -112,20 +257,45 @@ func (c *Dropbox) ChunkedUpload(uploadId string, offset int64, reader io.Reader)
 	return
 }
 
-func (c *Dropbox) CommitChunkedUpload(path string, uploadId string, overwrite bool, autorename bool) (res *CommitChunkedUploadResult, err error) {
-	params := make(url.Values)
-	params.Set("upload_id", uploadId)
-	params.Set("overwrite", fmt.Sprintf("%t", overwrite))
-	params.Set("autorename", fmt.Sprintf("%t", autorename))
+func (c *Dropbox) UploadSessionAppend(arg *UploadSessionCursor, reader io.Reader) (err error) {
+	headers := make(http.Header)
+	headers.Set("Content-Type", "application/octet-stream")
 
-	_, err = c.ContentHTTPClient.Request(&httpclient.RequestData{
+	req := &httpclient.RequestData{
 		Method:         "POST",
-		Path:           "/1/commit_chunked_upload/auto/" + path,
-		Params:         params,
+		Path:           "/2/files/upload_session/append",
+		Headers:        headers,
+		ReqReader:      reader,
+		ExpectedStatus: []int{http.StatusOK},
+	}
+
+	if err = c.addApiArg(req, arg); err != nil {
+		return
+	}
+
+	_, err = c.ContentHTTPClient.Request(req)
+
+	return
+}
+
+func (c *Dropbox) UploadSessionFinish(arg *UploadSessionFinishArg) (res *Metadata, err error) {
+	headers := make(http.Header)
+	headers.Set("Content-Type", "application/octet-stream")
+
+	req := &httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/upload_session/finish",
+		Headers:        headers,
 		ExpectedStatus: []int{http.StatusOK},
 		RespEncoding:   httpclient.EncodingJSON,
 		RespValue:      &res,
-	})
+	}
+
+	if err = c.addApiArg(req, arg); err != nil {
+		return
+	}
+
+	_, err = c.ContentHTTPClient.Request(req)
 
 	return
 }

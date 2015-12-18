@@ -1,41 +1,111 @@
 package dropboxclient
 
 import (
-	"encoding/json"
 	"io"
-	"net/http"
-	"strconv"
+	"time"
 )
 
-type DropboxFile struct {
-	IsDir    bool   `json:"is_dir"`
-	Bytes    int64  `json:"bytes"`
-	Modified string `json:"modified"`
-	ETag     string
-	Reader   io.ReadCloser
+const SpaceAllocationIndividual = "individual"
+const SpaceAllocationTeam = "team"
+
+type SpaceAllocation struct {
+	Tag       string `json:".tag"`
+	Used      int64  `json:"used"`
+	Allocated int64  `json:"allocated"`
 }
 
-type ChunkedUploadResult struct {
-	UploadId string `json:"upload_id"`
-	Offset   int64  `json:"offset"`
+type SpaceUsage struct {
+	Used       int64            `json:"used"`
+	Allocation *SpaceAllocation `json:"allocation"`
 }
 
-type CommitChunkedUploadResult struct {
+const MetadataFile = "file"
+const MetadataFolder = "folder"
+const MetadataDeleted = "deleted"
+
+type Metadata struct {
+	Tag            string    `json:".tag"`
+	Name           string    `json:"name"`
+	PathLower      string    `json:"path_lower"`
+	ClientModified time.Time `json:"client_modified"`
+	ServerModified time.Time `json:"server_modified"`
+	Rev            string    `json:"rev"`
+	Size           int64     `json:"size"`
+	Id             string    `json:"id"`
+}
+
+type GetMetadataArg struct {
+	Path             string `json:"path"`
+	IncludeMediaInfo bool   `json:"include_media_info"`
+}
+
+type ListFolderArg struct {
+	Path             string `json:"path"`
+	Recursive        bool   `json:"recursive"`
+	IncludeMediaInfo bool   `json:"include_media_info"`
+	IncludeDeleted   bool   `json:"include_deleted"`
+}
+
+type ListFolderResult struct {
+	Entries []*Metadata `json:"entries"`
+	Cursor  string      `json:"cursor"`
+	HasMore bool        `json:"has_more"`
+}
+
+type ListFolderContinueArg struct {
+	Cursor string `json:"cursor"`
+}
+
+type DownloadArg struct {
 	Path string `json:"path"`
 }
 
-func DropboxFileFromHeaders(path string, headers http.Header) (file *DropboxFile) {
-	metadata := headers.Get("x-dropbox-metadata")
+type CreateFolderArg struct {
+	Path string `json:"path"`
+}
 
-	file = &DropboxFile{}
+type DeleteArg struct {
+	Path string `json:"path"`
+}
 
-	_ = json.Unmarshal([]byte(metadata), file)
+type RelocationArg struct {
+	FromPath string `json:"from_path"`
+	ToPath   string `json:"to_path"`
+}
 
-	file.ETag = `"` + headers.Get("ETag") + `"`
+type UploadSessionStartResult struct {
+	SessionId string `json:"session_id"`
+}
 
-	contentLength, _ := strconv.ParseInt(headers.Get("Content-Length"), 10, 0)
+type UploadSessionCursor struct {
+	SessionId string `json:"session_id"`
+	Offset    int64  `json:"offset"`
+}
 
-	file.Bytes = contentLength
+const WriteModeAdd = "add"
+const WriteModeOverwrite = "overwrite"
+const WriteModeUpdate = "update"
 
-	return
+type WriteMode struct {
+	Tag    string `json:".tag"`
+	Update string `json:"update,omitempty"`
+}
+
+type CommitInfo struct {
+	Path           string     `json:"path"`
+	Mode           *WriteMode `json:"mode"`
+	Autorename     bool       `json:"autorename"`
+	ClientModified *int64     `json:"client_modified,omitempty"`
+	Mute           bool       `json:"mute"`
+}
+
+type UploadSessionFinishArg struct {
+	Cursor *UploadSessionCursor `json:"cursor"`
+	Commit *CommitInfo          `json:"commit"`
+}
+
+type DownloadV1 struct {
+	ContentLength int64
+	ETag          string
+	Reader        io.ReadCloser
 }
