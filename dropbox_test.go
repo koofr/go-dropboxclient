@@ -80,6 +80,42 @@ var _ = Describe("Dropbox", func() {
 		})
 	})
 
+	Describe("ListFolderContinue", func() {
+		It("should continue folder listing", func() {
+			dir1, err := client.CreateFolder(&CreateFolderArg{Path: "/" + randomName()})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = client.CreateFolder(&CreateFolderArg{Path: "/" + dir1.Name + "/" + randomName()})
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err := client.ListFolder(&ListFolderArg{Path: "/" + dir1.Name})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(result.Entries) > 0).To(BeTrue())
+
+			result, err = client.ListFolderContinue(&ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(result.Entries) >= 0).To(BeTrue())
+
+			_, err = client.Delete(&DeleteArg{Path: "/" + dir1.Name})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = client.ListFolderContinue(&ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).To(HaveOccurred())
+
+			dropboxErr, ok := IsDropboxError(err)
+			Expect(ok).To(BeTrue())
+			Expect(dropboxErr.Err.Tag).To(Equal("path"))
+			Expect(dropboxErr.Err.Path.Tag).To(Equal("not_found"))
+
+			_, err = client.ListFolderContinue(&ListFolderContinueArg{Cursor: "invalid"})
+			Expect(err).To(HaveOccurred())
+
+			dropboxErr, ok = IsDropboxError(err)
+			Expect(ok).To(BeTrue())
+			Expect(strings.Contains(dropboxErr.ErrorSummary, "Invalid cursor")).To(BeTrue())
+		})
+	})
+
 	Describe("CreateFolder", func() {
 		It("should create folder", func() {
 			name := randomName()

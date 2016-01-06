@@ -150,6 +150,24 @@ func (c *Dropbox) ListFolder(arg *ListFolderArg) (result *ListFolderResult, err 
 	return
 }
 
+func (c *Dropbox) ListFolderContinue(arg *ListFolderContinueArg) (result *ListFolderResult, err error) {
+	_, err = c.ApiRequest(&httpclient.RequestData{
+		Method:         "POST",
+		Path:           "/2/files/list_folder/continue",
+		ExpectedStatus: []int{http.StatusOK},
+		ReqEncoding:    httpclient.EncodingJSON,
+		ReqValue:       arg,
+		RespEncoding:   httpclient.EncodingJSON,
+		RespValue:      &result,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return
+}
+
 func (c *Dropbox) CreateFolder(arg *CreateFolderArg) (result *Metadata, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
