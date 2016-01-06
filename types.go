@@ -1,6 +1,7 @@
 package dropboxclient
 
 import (
+	"github.com/koofr/go-httpclient"
 	"io"
 	"time"
 )
@@ -108,4 +109,31 @@ type DownloadV1 struct {
 	ContentLength int64
 	ETag          string
 	Reader        io.ReadCloser
+}
+
+type DropboxErrorDetails struct {
+	Tag  string       `json:".tag"`
+	Path *LookupError `json:"path"`
+}
+
+type LookupError struct {
+	Tag string `json:".tag"`
+}
+
+type DropboxError struct {
+	ErrorSummary    string              `json:"error_summary"`
+	Err             DropboxErrorDetails `json:"error"`
+	HttpClientError *httpclient.InvalidStatusError
+}
+
+func (e *DropboxError) Error() string {
+	return e.ErrorSummary
+}
+
+func IsDropboxError(err error) (dropboxErr *DropboxError, ok bool) {
+	if dbe, ok := err.(*DropboxError); ok {
+		return dbe, true
+	} else {
+		return nil, false
+	}
 }

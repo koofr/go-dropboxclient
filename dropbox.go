@@ -60,8 +60,46 @@ func (c *Dropbox) getApiResult(res *http.Response, result interface{}) error {
 	return nil
 }
 
+func (c *Dropbox) HandleError(err error) error {
+	if ise, ok := httpclient.IsInvalidStatusError(err); ok {
+		dropboxErr := &DropboxError{}
+
+		if ise.Headers.Get("Content-Type") == "application/json" {
+			if jsonErr := json.Unmarshal([]byte(ise.Content), &dropboxErr); jsonErr != nil {
+				dropboxErr.ErrorSummary = ise.Content
+			}
+		} else {
+			dropboxErr.ErrorSummary = ise.Content
+		}
+
+		dropboxErr.HttpClientError = ise
+
+		return dropboxErr
+	} else {
+		return err
+	}
+}
+
+func (c *Dropbox) Request(client *httpclient.HTTPClient, req *httpclient.RequestData) (res *http.Response, err error) {
+	res, err = client.Request(req)
+
+	if err != nil {
+		return res, c.HandleError(err)
+	}
+
+	return res, nil
+}
+
+func (c *Dropbox) ApiRequest(req *httpclient.RequestData) (res *http.Response, err error) {
+	return c.Request(c.ApiHTTPClient, req)
+}
+
+func (c *Dropbox) ContentRequest(req *httpclient.RequestData) (res *http.Response, err error) {
+	return c.Request(c.ContentHTTPClient, req)
+}
+
 func (c *Dropbox) GetSpaceUsage() (result *SpaceUsage, err error) {
-	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/users/get_space_usage",
 		ExpectedStatus: []int{http.StatusOK},
@@ -77,7 +115,7 @@ func (c *Dropbox) GetSpaceUsage() (result *SpaceUsage, err error) {
 }
 
 func (c *Dropbox) GetMetadata(arg *GetMetadataArg) (result *Metadata, err error) {
-	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/get_metadata",
 		ExpectedStatus: []int{http.StatusOK},
@@ -95,7 +133,7 @@ func (c *Dropbox) GetMetadata(arg *GetMetadataArg) (result *Metadata, err error)
 }
 
 func (c *Dropbox) ListFolder(arg *ListFolderArg) (result *ListFolderResult, err error) {
-	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/list_folder",
 		ExpectedStatus: []int{http.StatusOK},
@@ -113,7 +151,7 @@ func (c *Dropbox) ListFolder(arg *ListFolderArg) (result *ListFolderResult, err 
 }
 
 func (c *Dropbox) CreateFolder(arg *CreateFolderArg) (result *Metadata, err error) {
-	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/create_folder",
 		ExpectedStatus: []int{http.StatusOK},
@@ -131,7 +169,7 @@ func (c *Dropbox) CreateFolder(arg *CreateFolderArg) (result *Metadata, err erro
 }
 
 func (c *Dropbox) Delete(arg *DeleteArg) (result *Metadata, err error) {
-	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/delete",
 		ExpectedStatus: []int{http.StatusOK},
@@ -149,7 +187,7 @@ func (c *Dropbox) Delete(arg *DeleteArg) (result *Metadata, err error) {
 }
 
 func (c *Dropbox) Copy(arg *RelocationArg) (result *Metadata, err error) {
-	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/copy",
 		ExpectedStatus: []int{http.StatusOK},
@@ -167,7 +205,7 @@ func (c *Dropbox) Copy(arg *RelocationArg) (result *Metadata, err error) {
 }
 
 func (c *Dropbox) Move(arg *RelocationArg) (result *Metadata, err error) {
-	_, err = c.ApiHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ApiRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/move",
 		ExpectedStatus: []int{http.StatusOK},
@@ -195,7 +233,7 @@ func (c *Dropbox) Download(arg *DownloadArg) (reader io.ReadCloser, result *Meta
 		return
 	}
 
-	res, err := c.ContentHTTPClient.Request(req)
+	res, err := c.ContentRequest(req)
 
 	if err != nil {
 		return
@@ -223,7 +261,7 @@ func (c *Dropbox) DownloadV1(path string, span *ioutils.FileSpan) (result *Downl
 		req.Headers.Set("Range", fmt.Sprintf("bytes=%d-%d", span.Start, span.End))
 	}
 
-	res, err := c.ContentHTTPClient.Request(&req)
+	res, err := c.ContentRequest(&req)
 
 	if err != nil {
 		return
@@ -244,7 +282,7 @@ func (c *Dropbox) UploadSessionStart(reader io.Reader) (res *UploadSessionStartR
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/octet-stream")
 
-	_, err = c.ContentHTTPClient.Request(&httpclient.RequestData{
+	_, err = c.ContentRequest(&httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/upload_session/start",
 		Headers:        headers,
@@ -273,7 +311,7 @@ func (c *Dropbox) UploadSessionAppend(arg *UploadSessionCursor, reader io.Reader
 		return
 	}
 
-	_, err = c.ContentHTTPClient.Request(req)
+	_, err = c.ContentRequest(req)
 
 	return
 }
@@ -295,7 +333,7 @@ func (c *Dropbox) UploadSessionFinish(arg *UploadSessionFinishArg) (res *Metadat
 		return
 	}
 
-	_, err = c.ContentHTTPClient.Request(req)
+	_, err = c.ContentRequest(req)
 
 	return
 }

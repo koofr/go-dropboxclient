@@ -2,11 +2,11 @@ package dropboxclient
 
 import (
 	"fmt"
-	"io/ioutil"
-	"strings"
 	"github.com/koofr/go-ioutils"
+	"io/ioutil"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -29,8 +29,12 @@ var _ = Describe("Dropbox", func() {
 		client = NewDropbox(accessToken)
 	})
 
+	var randomName = func() string {
+		return fmt.Sprintf("%d", rand.Int())
+	}
+
 	var createFolder = func() *Metadata {
-		name := fmt.Sprintf("%d", rand.Int())
+		name := randomName()
 
 		md, err := client.CreateFolder(&CreateFolderArg{Path: "/" + name})
 		Expect(err).NotTo(HaveOccurred())
@@ -78,7 +82,7 @@ var _ = Describe("Dropbox", func() {
 
 	Describe("CreateFolder", func() {
 		It("should create folder", func() {
-			name := fmt.Sprintf("%d", rand.Int())
+			name := randomName()
 
 			md, err := client.CreateFolder(&CreateFolderArg{Path: "/" + name})
 			Expect(err).NotTo(HaveOccurred())
@@ -199,7 +203,7 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.Name).To(Equal(name))
 			_ = ioutils.FileSpan{}
 
-			res, err := client.DownloadV1("/" + name, nil)
+			res, err := client.DownloadV1("/"+name, nil)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res.ContentLength).To(Equal(int64(5)))
 
@@ -217,7 +221,7 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.Name).To(Equal(name))
 			_ = ioutils.FileSpan{}
 
-			res, err := client.DownloadV1("/" + name, &ioutils.FileSpan{2, 3})
+			res, err := client.DownloadV1("/"+name, &ioutils.FileSpan{2, 3})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res.ContentLength).To(Equal(int64(2)))
 
