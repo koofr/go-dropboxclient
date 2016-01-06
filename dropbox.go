@@ -17,8 +17,8 @@ type Dropbox struct {
 }
 
 func NewDropbox(accessToken string) (dropbox *Dropbox) {
-	apiBaseUrl, _ := url.Parse("https://api.dropbox.com")
-	contentBaseUrl, _ := url.Parse("https://api-content.dropbox.com")
+	apiBaseUrl, _ := url.Parse("https://api.dropboxapi.com")
+	contentBaseUrl, _ := url.Parse("https://content.dropboxapi.com")
 
 	apiHttpClient := httpclient.New()
 	apiHttpClient.BaseURL = apiBaseUrl
