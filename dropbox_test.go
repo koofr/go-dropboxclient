@@ -123,6 +123,7 @@ var _ = Describe("Dropbox", func() {
 			md, err := client.CreateFolder(&CreateFolderArg{Path: "/" + name})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(name))
+			Expect(md.Tag).To(Equal(""))
 		})
 	})
 
@@ -133,6 +134,7 @@ var _ = Describe("Dropbox", func() {
 			md, err := client.Delete(&DeleteArg{Path: "/" + folder.Name})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(folder.Name))
+			Expect(md.Tag).To(Equal("folder"))
 
 			_, err = client.GetMetadata(&GetMetadataArg{Path: "/" + folder.Name})
 			Expect(err).To(HaveOccurred())
@@ -275,6 +277,7 @@ var _ = Describe("Dropbox", func() {
 			md, err := upload(name)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(name))
+			Expect(md.Tag).To(Equal(""))
 		})
 	})
 })
