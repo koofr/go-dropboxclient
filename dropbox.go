@@ -72,6 +72,10 @@ func (c *Dropbox) HandleError(err error) error {
 			dropboxErr.ErrorSummary = ise.Content
 		}
 
+		if dropboxErr.ErrorSummary == "" {
+			dropboxErr.ErrorSummary = ise.Error()
+		}
+
 		dropboxErr.HttpClientError = ise
 
 		return dropboxErr
