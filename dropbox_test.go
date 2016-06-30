@@ -221,32 +221,14 @@ var _ = Describe("Dropbox", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(name))
 
-			reader, md, err := client.Download(&DownloadArg{Path: "/" + name})
+			reader, md, err := client.Download(&DownloadArg{Path: "/" + name}, nil)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(name))
+			Expect(md.ETag).NotTo(Equal(""))
+			Expect(md.ContentLength).To(Equal(int64(5)))
 
 			data, _ := ioutil.ReadAll(reader)
 			reader.Close()
-
-			Expect(string(data)).To(Equal("12345"))
-		})
-	})
-
-	Describe("DownloadV1", func() {
-		It("should download a file", func() {
-			name := fmt.Sprintf("new-file-%d", rand.Int())
-
-			md, err := upload(name)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(md.Name).To(Equal(name))
-			_ = ioutils.FileSpan{}
-
-			res, err := client.DownloadV1("/"+name, nil)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(res.ContentLength).To(Equal(int64(5)))
-
-			data, _ := ioutil.ReadAll(res.Reader)
-			res.Reader.Close()
 
 			Expect(string(data)).To(Equal("12345"))
 		})
@@ -259,12 +241,14 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.Name).To(Equal(name))
 			_ = ioutils.FileSpan{}
 
-			res, err := client.DownloadV1("/"+name, &ioutils.FileSpan{2, 3})
+			reader, md, err := client.Download(&DownloadArg{Path: "/" + name}, &ioutils.FileSpan{2, 3})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(res.ContentLength).To(Equal(int64(2)))
+			Expect(md.Name).To(Equal(name))
+			Expect(md.ETag).NotTo(Equal(""))
+			Expect(md.ContentLength).To(Equal(int64(2)))
 
-			data, _ := ioutil.ReadAll(res.Reader)
-			res.Reader.Close()
+			data, _ := ioutil.ReadAll(reader)
+			reader.Close()
 
 			Expect(string(data)).To(Equal("34"))
 		})

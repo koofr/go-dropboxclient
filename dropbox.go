@@ -244,11 +244,16 @@ func (c *Dropbox) Move(arg *RelocationArg) (result *Metadata, err error) {
 	return
 }
 
-func (c *Dropbox) Download(arg *DownloadArg) (reader io.ReadCloser, result *Metadata, err error) {
+func (c *Dropbox) Download(arg *DownloadArg, span *ioutils.FileSpan) (reader io.ReadCloser, result *Metadata, err error) {
 	req := &httpclient.RequestData{
 		Method:         "POST",
 		Path:           "/2/files/download",
-		ExpectedStatus: []int{http.StatusOK},
+		ExpectedStatus: []int{http.StatusOK, http.StatusPartialContent},
+	}
+
+	if span != nil {
+		req.Headers = make(http.Header)
+		req.Headers.Set("Range", fmt.Sprintf("bytes=%d-%d", span.Start, span.End))
 	}
 
 	if err = c.addApiArg(req, arg); err != nil {
@@ -268,36 +273,13 @@ func (c *Dropbox) Download(arg *DownloadArg) (reader io.ReadCloser, result *Meta
 		return nil, nil, err
 	}
 
-	return res.Body, result, err
-}
-
-func (c *Dropbox) DownloadV1(path string, span *ioutils.FileSpan) (result *DownloadV1, err error) {
-	req := httpclient.RequestData{
-		Method:         "GET",
-		Path:           "/1/files/auto/" + path,
-		ExpectedStatus: []int{http.StatusOK, http.StatusPartialContent},
-	}
-
-	if span != nil {
-		req.Headers = make(http.Header)
-		req.Headers.Set("Range", fmt.Sprintf("bytes=%d-%d", span.Start, span.End))
-	}
-
-	res, err := c.ContentRequest(&req)
-
-	if err != nil {
-		return
-	}
+	result.ETag = res.Header.Get("Etag")
 
 	contentLength, _ := strconv.ParseInt(res.Header.Get("Content-Length"), 10, 0)
 
-	result = &DownloadV1{
-		ContentLength: contentLength,
-		ETag:          res.Header.Get("ETag"),
-		Reader:        res.Body,
-	}
+	result.ContentLength = contentLength
 
-	return
+	return res.Body, result, err
 }
 
 func (c *Dropbox) UploadSessionStart(reader io.Reader) (res *UploadSessionStartResult, err error) {

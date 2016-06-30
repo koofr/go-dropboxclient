@@ -33,6 +33,9 @@ type Metadata struct {
 	Rev            string    `json:"rev"`
 	Size           int64     `json:"size"`
 	Id             string    `json:"id"`
+
+	ETag          string
+	ContentLength int64
 }
 
 type GetMetadataArg struct {
