@@ -2,12 +2,13 @@ package dropboxclient
 
 import (
 	"fmt"
-	"github.com/koofr/go-ioutils"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/koofr/go-ioutils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -138,6 +139,16 @@ var _ = Describe("Dropbox", func() {
 
 			_, err = client.GetMetadata(&GetMetadataArg{Path: "/" + folder.Name})
 			Expect(err).To(HaveOccurred())
+		})
+
+		It("should fail to delete", func() {
+			_, err := client.Delete(&DeleteArg{Path: "/somethingrandom"})
+			Expect(err).To(HaveOccurred())
+
+			dropboxErr, ok := IsDropboxError(err)
+			Expect(ok).To(BeTrue())
+			Expect(dropboxErr.Err.Tag).To(Equal("path_lookup"))
+			Expect(dropboxErr.Err.PathLookup.Tag).To(Equal("not_found"))
 		})
 	})
 

@@ -1,9 +1,10 @@
 package dropboxclient
 
 import (
-	"github.com/koofr/go-httpclient"
 	"io"
 	"time"
+
+	"github.com/koofr/go-httpclient"
 )
 
 const SpaceAllocationIndividual = "individual"
@@ -115,8 +116,9 @@ type DownloadV1 struct {
 }
 
 type DropboxErrorDetails struct {
-	Tag  string       `json:".tag"`
-	Path *LookupError `json:"path"`
+	Tag        string       `json:".tag"`
+	Path       *LookupError `json:"path"`
+	PathLookup *LookupError `json:"path_lookup"`
 }
 
 type LookupError struct {
