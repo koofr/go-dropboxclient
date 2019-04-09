@@ -12,6 +12,7 @@ import (
 	"time"
 
 	. "github.com/koofr/go-dropboxclient"
+	"github.com/koofr/go-dropboxclient/mockdropbox"
 	"github.com/koofr/go-ioutils"
 
 	. "github.com/onsi/ginkgo"
@@ -35,16 +36,32 @@ var _ = Describe("Dropbox", func() {
 	var client *Dropbox
 
 	accessToken := os.Getenv("DROPBOX_ACCESS_TOKEN")
+	useMock := os.Getenv("DROPBOX_USE_MOCK") == "true"
 
 	if accessToken == "" {
 		fmt.Println("DROPBOX_ACCESS_TOKEN env variable missing")
 		return
 	}
 
+	var mockServer *httptest.Server
+
 	BeforeEach(func() {
 		rand.Seed(time.Now().UnixNano())
 
 		client = NewDropbox(accessToken)
+
+		if useMock {
+			mockServer = httptest.NewServer(mockdropbox.New())
+			tsURL, _ := url.Parse(mockServer.URL)
+			client.ApiHTTPClient.BaseURL = tsURL
+			client.ContentHTTPClient.BaseURL = tsURL
+		}
+	})
+
+	AfterEach(func() {
+		if useMock {
+			mockServer.Close()
+		}
 	})
 
 	var randomName = func() string {
