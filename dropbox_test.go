@@ -1,18 +1,35 @@
-package dropboxclient
+package dropboxclient_test
 
 import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
+	. "github.com/koofr/go-dropboxclient"
 	"github.com/koofr/go-ioutils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+type listResultPair struct {
+	tag  string
+	path string
+}
+
+func listResultPairs(result *ListFolderResult) []listResultPair {
+	pairs := []listResultPair{}
+	for _, md := range result.Entries {
+		pairs = append(pairs, listResultPair{md.Tag, md.PathLower})
+	}
+	return pairs
+}
 
 var _ = Describe("Dropbox", func() {
 	var client *Dropbox
@@ -113,7 +130,65 @@ var _ = Describe("Dropbox", func() {
 
 			dropboxErr, ok = IsDropboxError(err)
 			Expect(ok).To(BeTrue())
-			Expect(strings.Contains(dropboxErr.ErrorSummary, "Invalid cursor")).To(BeTrue())
+			Expect(strings.Contains(dropboxErr.ErrorSummary, `Invalid "cursor"`)).To(BeTrue())
+		})
+
+		It("should get deleted items", func() {
+			dir1, err := client.CreateFolder(&CreateFolderArg{Path: "/" + randomName()})
+			Expect(err).NotTo(HaveOccurred())
+
+			dir2, err := client.CreateFolder(&CreateFolderArg{Path: "/" + dir1.Name + "/" + randomName()})
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err := client.ListFolder(&ListFolderArg{Path: "/" + dir1.Name, Recursive: true})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(listResultPairs(result)).To(ConsistOf(
+				listResultPair{MetadataFolder, dir1.PathLower},
+				listResultPair{MetadataFolder, dir2.PathLower},
+			))
+			Expect(result.HasMore).To(BeFalse())
+
+			dir3, err := client.CreateFolder(&CreateFolderArg{Path: "/" + dir1.Name + "/" + dir2.Name + "/" + randomName()})
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err = client.ListFolderContinue(&ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(listResultPairs(result)).To(ConsistOf(
+				listResultPair{MetadataFolder, dir3.PathLower},
+			))
+			Expect(result.HasMore).To(BeFalse())
+
+			oldDir3 := dir3
+			dir3, err = client.Move(&RelocationArg{FromPath: dir3.PathLower, ToPath: path.Join(path.Dir(dir3.PathLower), randomName())})
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err = client.ListFolderContinue(&ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(listResultPairs(result)).To(ConsistOf(
+				listResultPair{MetadataDeleted, oldDir3.PathLower},
+				listResultPair{MetadataFolder, dir3.PathLower},
+			))
+			Expect(result.HasMore).To(BeFalse())
+
+			_, err = client.Delete(&DeleteArg{Path: dir3.PathLower})
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err = client.ListFolderContinue(&ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(listResultPairs(result)).To(ConsistOf(
+				listResultPair{MetadataDeleted, dir3.PathLower},
+			))
+			Expect(result.HasMore).To(BeFalse())
+
+			_, err = client.Delete(&DeleteArg{Path: dir2.PathLower})
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err = client.ListFolderContinue(&ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(listResultPairs(result)).To(ConsistOf(
+				listResultPair{MetadataDeleted, dir2.PathLower},
+			))
+			Expect(result.HasMore).To(BeFalse())
 		})
 	})
 

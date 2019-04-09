@@ -3,12 +3,13 @@ package dropboxclient
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/koofr/go-httpclient"
-	"github.com/koofr/go-ioutils"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/koofr/go-httpclient"
+	"github.com/koofr/go-ioutils"
 )
 
 type Dropbox struct {
