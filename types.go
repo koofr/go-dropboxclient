@@ -100,7 +100,7 @@ type CommitInfo struct {
 	Path           string     `json:"path"`
 	Mode           *WriteMode `json:"mode"`
 	Autorename     bool       `json:"autorename"`
-	ClientModified *int64     `json:"client_modified,omitempty"`
+	ClientModified *string    `json:"client_modified,omitempty"`
 	Mute           bool       `json:"mute"`
 }
 
