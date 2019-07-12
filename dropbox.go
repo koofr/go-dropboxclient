@@ -12,6 +12,10 @@ import (
 	"github.com/koofr/go-ioutils"
 )
 
+const (
+	DropboxClientModifiedFormat = "2006-01-02T15:04:05Z07"
+)
+
 type Dropbox struct {
 	ApiHTTPClient     *httpclient.HTTPClient
 	ContentHTTPClient *httpclient.HTTPClient
