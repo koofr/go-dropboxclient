@@ -15,11 +15,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gorilla/mux"
 	"github.com/koofr/go-dropboxclient"
 	httputils "github.com/koofr/go-httputils"
 	ioutils "github.com/koofr/go-ioutils"
 	"github.com/koofr/go-pathutils"
-	"github.com/koofr/mux"
 )
 
 type MockDropbox struct {
