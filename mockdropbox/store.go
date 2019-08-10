@@ -165,7 +165,7 @@ func (s *Store) CreateFolder(parentItem *Item, path string) (item *Item, ok bool
 	return childItem, true
 }
 
-func (s *Store) CreateFile(session *UploadSession, parentItem *Item, path string, autorename bool, mode string, modeUpdate string) (newItem *Item, ok bool, isConflict bool) {
+func (s *Store) CreateFile(session *UploadSession, parentItem *Item, path string, autorename bool, clientModifiedOpt *time.Time, mode string, modeUpdate string) (newItem *Item, ok bool, isConflict bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -178,6 +178,11 @@ func (s *Store) CreateFile(session *UploadSession, parentItem *Item, path string
 	modified := s.TimeNow()
 	rev := randomString()
 	size := int64(len(data))
+
+	clientModified := modified
+	if clientModifiedOpt != nil {
+		clientModified = *clientModifiedOpt
+	}
 
 	var existingItem *Item
 	existingNames := map[string]*Item{}
@@ -193,7 +198,7 @@ func (s *Store) CreateFile(session *UploadSession, parentItem *Item, path string
 			return nil, false, true
 		}
 		newItem = existingItem
-		newItem.Metadata.ClientModified = modified
+		newItem.Metadata.ClientModified = clientModified
 		newItem.Metadata.ServerModified = modified
 		newItem.Metadata.Rev = rev
 		newItem.Metadata.Size = size
@@ -222,7 +227,7 @@ func (s *Store) CreateFile(session *UploadSession, parentItem *Item, path string
 			Id:             generateId(),
 			Name:           name,
 			PathLower:      pathToLower(gopath.Join(parentPath, name)),
-			ClientModified: modified,
+			ClientModified: clientModified,
 			ServerModified: modified,
 			Rev:            rev,
 			Size:           size,

@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/koofr/go-dropboxclient"
@@ -463,7 +464,16 @@ func (d *MockDropbox) FilesUploadSessionFinish(w http.ResponseWriter, r *http.Re
 		d.pathLookupNotFound(w)
 		return
 	}
-	item, ok, isConflict := d.Store(r).CreateFile(session, parentItem, arg.Commit.Path, arg.Commit.Autorename, arg.Commit.Mode.Tag, arg.Commit.Mode.Update)
+	var clientModifiedOpt *time.Time
+	if arg.Commit.ClientModified != nil {
+		clientModified, err := time.Parse(dropboxclient.DropboxClientModifiedFormat, *arg.Commit.ClientModified)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid client modified time format: %s", err), http.StatusInternalServerError)
+			return
+		}
+		clientModifiedOpt = &clientModified
+	}
+	item, ok, isConflict := d.Store(r).CreateFile(session, parentItem, arg.Commit.Path, arg.Commit.Autorename, clientModifiedOpt, arg.Commit.Mode.Tag, arg.Commit.Mode.Update)
 	if !ok {
 		if isConflict {
 			d.res(w, http.StatusConflict, &dropboxclient.DropboxError{
