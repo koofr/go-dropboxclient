@@ -1,6 +1,7 @@
 package dropboxclient
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -107,8 +108,9 @@ func (c *Dropbox) ContentRequest(req *httpclient.RequestData) (res *http.Respons
 	return c.Request(c.ContentHTTPClient, req)
 }
 
-func (c *Dropbox) GetSpaceUsage() (result *SpaceUsage, err error) {
+func (c *Dropbox) GetSpaceUsage(ctx context.Context) (result *SpaceUsage, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/users/get_space_usage",
 		ExpectedStatus: []int{http.StatusOK},
@@ -123,8 +125,9 @@ func (c *Dropbox) GetSpaceUsage() (result *SpaceUsage, err error) {
 	return
 }
 
-func (c *Dropbox) GetMetadata(arg *GetMetadataArg) (result *Metadata, err error) {
+func (c *Dropbox) GetMetadata(ctx context.Context, arg *GetMetadataArg) (result *Metadata, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/get_metadata",
 		ExpectedStatus: []int{http.StatusOK},
@@ -141,8 +144,9 @@ func (c *Dropbox) GetMetadata(arg *GetMetadataArg) (result *Metadata, err error)
 	return
 }
 
-func (c *Dropbox) ListFolder(arg *ListFolderArg) (result *ListFolderResult, err error) {
+func (c *Dropbox) ListFolder(ctx context.Context, arg *ListFolderArg) (result *ListFolderResult, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/list_folder",
 		ExpectedStatus: []int{http.StatusOK},
@@ -159,8 +163,9 @@ func (c *Dropbox) ListFolder(arg *ListFolderArg) (result *ListFolderResult, err 
 	return
 }
 
-func (c *Dropbox) ListFolderContinue(arg *ListFolderContinueArg) (result *ListFolderResult, err error) {
+func (c *Dropbox) ListFolderContinue(ctx context.Context, arg *ListFolderContinueArg) (result *ListFolderResult, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/list_folder/continue",
 		ExpectedStatus: []int{http.StatusOK},
@@ -177,8 +182,9 @@ func (c *Dropbox) ListFolderContinue(arg *ListFolderContinueArg) (result *ListFo
 	return
 }
 
-func (c *Dropbox) CreateFolder(arg *CreateFolderArg) (result *Metadata, err error) {
+func (c *Dropbox) CreateFolder(ctx context.Context, arg *CreateFolderArg) (result *Metadata, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/create_folder",
 		ExpectedStatus: []int{http.StatusOK},
@@ -195,8 +201,9 @@ func (c *Dropbox) CreateFolder(arg *CreateFolderArg) (result *Metadata, err erro
 	return
 }
 
-func (c *Dropbox) Delete(arg *DeleteArg) (result *Metadata, err error) {
+func (c *Dropbox) Delete(ctx context.Context, arg *DeleteArg) (result *Metadata, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/delete",
 		ExpectedStatus: []int{http.StatusOK},
@@ -213,8 +220,9 @@ func (c *Dropbox) Delete(arg *DeleteArg) (result *Metadata, err error) {
 	return
 }
 
-func (c *Dropbox) Copy(arg *RelocationArg) (result *Metadata, err error) {
+func (c *Dropbox) Copy(ctx context.Context, arg *RelocationArg) (result *Metadata, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/copy",
 		ExpectedStatus: []int{http.StatusOK},
@@ -231,8 +239,9 @@ func (c *Dropbox) Copy(arg *RelocationArg) (result *Metadata, err error) {
 	return
 }
 
-func (c *Dropbox) Move(arg *RelocationArg) (result *Metadata, err error) {
+func (c *Dropbox) Move(ctx context.Context, arg *RelocationArg) (result *Metadata, err error) {
 	_, err = c.ApiRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/move",
 		ExpectedStatus: []int{http.StatusOK},
@@ -249,8 +258,9 @@ func (c *Dropbox) Move(arg *RelocationArg) (result *Metadata, err error) {
 	return
 }
 
-func (c *Dropbox) Download(arg *DownloadArg, span *ioutils.FileSpan) (reader io.ReadCloser, result *Metadata, err error) {
+func (c *Dropbox) Download(ctx context.Context, arg *DownloadArg, span *ioutils.FileSpan) (reader io.ReadCloser, result *Metadata, err error) {
 	req := &httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/download",
 		ExpectedStatus: []int{http.StatusOK, http.StatusPartialContent},
@@ -287,11 +297,12 @@ func (c *Dropbox) Download(arg *DownloadArg, span *ioutils.FileSpan) (reader io.
 	return res.Body, result, err
 }
 
-func (c *Dropbox) UploadSessionStart(reader io.Reader) (res *UploadSessionStartResult, err error) {
+func (c *Dropbox) UploadSessionStart(ctx context.Context, reader io.Reader) (res *UploadSessionStartResult, err error) {
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/octet-stream")
 
 	_, err = c.ContentRequest(&httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/upload_session/start",
 		Headers:        headers,
@@ -304,11 +315,12 @@ func (c *Dropbox) UploadSessionStart(reader io.Reader) (res *UploadSessionStartR
 	return
 }
 
-func (c *Dropbox) UploadSessionAppend(arg *UploadSessionCursor, reader io.Reader) (err error) {
+func (c *Dropbox) UploadSessionAppend(ctx context.Context, arg *UploadSessionCursor, reader io.Reader) (err error) {
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/octet-stream")
 
 	req := &httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/upload_session/append",
 		Headers:        headers,
@@ -325,11 +337,12 @@ func (c *Dropbox) UploadSessionAppend(arg *UploadSessionCursor, reader io.Reader
 	return
 }
 
-func (c *Dropbox) UploadSessionFinish(arg *UploadSessionFinishArg) (res *Metadata, err error) {
+func (c *Dropbox) UploadSessionFinish(ctx context.Context, arg *UploadSessionFinishArg) (res *Metadata, err error) {
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/octet-stream")
 
 	req := &httpclient.RequestData{
+		Context:        ctx,
 		Method:         "POST",
 		Path:           "/2/files/upload_session/finish",
 		Headers:        headers,
