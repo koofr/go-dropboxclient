@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	gopath "path"
 	"sort"
 	"strings"
@@ -96,9 +95,20 @@ func (d *MockDropbox) validPath(w http.ResponseWriter, path string) bool {
 	return true
 }
 
-func (d *MockDropbox) buildCursor(path string, recursive bool, lastChangeID int64) string {
+func (d *MockDropbox) validPathOrID(w http.ResponseWriter, path string) bool {
+	if isPathID(path) {
+		return true
+	}
+	if !pathutils.IsPathValid(path) {
+		http.Error(w, "Invalid path", http.StatusInternalServerError)
+		return false
+	}
+	return true
+}
+
+func (d *MockDropbox) buildCursor(id string, recursive bool, lastChangeID int64) string {
 	cursor := &Cursor{
-		Path:         path,
+		ID:           id,
 		Recursive:    recursive,
 		LastChangeID: lastChangeID,
 	}
@@ -256,10 +266,10 @@ func (d *MockDropbox) FilesGetMetadata(w http.ResponseWriter, r *http.Request) {
 	if !d.arg(w, r, &arg) {
 		return
 	}
-	if !d.validPath(w, arg.Path) {
+	if !d.validPathOrID(w, arg.Path) {
 		return
 	}
-	item, ok := d.Store(r).GetItemByPath(arg.Path)
+	item, ok := d.Store(r).GetItemByPathOrID(arg.Path)
 	if !ok {
 		d.pathNotFound(w)
 		return
@@ -273,7 +283,7 @@ func (d *MockDropbox) FilesGetMetadata(w http.ResponseWriter, r *http.Request) {
 
 func (d *MockDropbox) listFolder(w http.ResponseWriter, r *http.Request, cursor *Cursor) {
 	nextChangeID := d.Store(r).GetCurrentChangeID()
-	item, ok := d.Store(r).GetItemByPath(cursor.Path)
+	item, ok := d.Store(r).GetItemByID(cursor.ID)
 	if !ok {
 		d.pathNotFound(w)
 		return
@@ -312,7 +322,7 @@ func (d *MockDropbox) listFolder(w http.ResponseWriter, r *http.Request, cursor 
 	d.res(w, http.StatusOK, &dropboxclient.ListFolderResult{
 		Entries: entries,
 		HasMore: false,
-		Cursor:  d.buildCursor(cursor.Path, cursor.Recursive, nextChangeID),
+		Cursor:  d.buildCursor(cursor.ID, cursor.Recursive, nextChangeID),
 	})
 }
 
@@ -321,11 +331,16 @@ func (d *MockDropbox) FilesListFolder(w http.ResponseWriter, r *http.Request) {
 	if !d.arg(w, r, &arg) {
 		return
 	}
-	if !d.validPath(w, arg.Path) {
+	if !d.validPathOrID(w, arg.Path) {
+		return
+	}
+	item, ok := d.Store(r).GetItemByPathOrID(arg.Path)
+	if !ok {
+		d.pathNotFound(w)
 		return
 	}
 	cursor := &Cursor{
-		Path:         arg.Path,
+		ID:           item.Metadata.Id,
 		Recursive:    arg.Recursive,
 		LastChangeID: 0,
 	}
@@ -349,10 +364,10 @@ func (d *MockDropbox) FilesDelete(w http.ResponseWriter, r *http.Request) {
 	if !d.arg(w, r, &arg) {
 		return
 	}
-	if !d.validPath(w, arg.Path) {
+	if !d.validPathOrID(w, arg.Path) {
 		return
 	}
-	item, ok := d.Store(r).GetItemByPath(arg.Path)
+	item, ok := d.Store(r).GetItemByPathOrID(arg.Path)
 	if !ok {
 		d.pathLookupNotFound(w)
 		return
@@ -366,13 +381,13 @@ func (d *MockDropbox) FilesCopy(w http.ResponseWriter, r *http.Request) {
 	if !d.arg(w, r, &arg) {
 		return
 	}
-	if !d.validPath(w, arg.FromPath) {
+	if !d.validPathOrID(w, arg.FromPath) {
 		return
 	}
 	if !d.validPath(w, arg.ToPath) {
 		return
 	}
-	item, ok := d.Store(r).GetItemByPath(arg.FromPath)
+	item, ok := d.Store(r).GetItemByPathOrID(arg.FromPath)
 	if !ok {
 		d.pathLookupNotFound(w)
 		return
@@ -391,13 +406,13 @@ func (d *MockDropbox) FilesMove(w http.ResponseWriter, r *http.Request) {
 	if !d.arg(w, r, &arg) {
 		return
 	}
-	if !d.validPath(w, arg.FromPath) {
+	if !d.validPathOrID(w, arg.FromPath) {
 		return
 	}
 	if !d.validPath(w, arg.ToPath) {
 		return
 	}
-	item, ok := d.Store(r).GetItemByPath(arg.FromPath)
+	item, ok := d.Store(r).GetItemByPathOrID(arg.FromPath)
 	if !ok {
 		d.pathLookupNotFound(w)
 		return
@@ -533,10 +548,10 @@ func (d *MockDropbox) FilesDownload(w http.ResponseWriter, r *http.Request) {
 	if !d.headerArg(w, r, &arg) {
 		return
 	}
-	if !d.validPath(w, arg.Path) {
+	if !d.validPathOrID(w, arg.Path) {
 		return
 	}
-	item, ok := d.Store(r).GetItemByPath(arg.Path)
+	item, ok := d.Store(r).GetItemByPathOrID(arg.Path)
 	if !ok {
 		d.pathNotFound(w)
 		return
@@ -557,7 +572,7 @@ func (d *MockDropbox) FilesDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if span != nil {
-		_, err := bytesReader.Seek(span.Start, os.SEEK_SET)
+		_, err := bytesReader.Seek(span.Start, io.SeekStart)
 		if err != nil {
 			log.Printf("reader seek error: %s", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)

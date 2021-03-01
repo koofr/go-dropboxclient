@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"math/rand"
 	gopath "path"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,8 @@ import (
 	dropboxclient "github.com/koofr/go-dropboxclient"
 	pathutils "github.com/koofr/go-pathutils"
 )
+
+var idRegexp = regexp.MustCompile("^id:.*$")
 
 var randomIdRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -26,7 +29,7 @@ type Item struct {
 }
 
 type Cursor struct {
-	Path         string
+	ID           string
 	Recursive    bool
 	LastChangeID int64
 }
@@ -57,6 +60,10 @@ func randomString() string {
 
 func generateId() string {
 	return "id:" + randomString()
+}
+
+func isPathID(path string) bool {
+	return idRegexp.MatchString(path)
 }
 
 type Store struct {
@@ -360,6 +367,23 @@ func (s *Store) Move(item *Item, newParentItem *Item, newPath string) {
 	}
 
 	mv(item, newParentItem, newPath)
+}
+
+func (s *Store) GetItemByPathOrID(path string) (item *Item, ok bool) {
+	if isPathID(path) {
+		return s.GetItemByID(path)
+	}
+
+	return s.GetItemByPath(path)
+}
+
+func (s *Store) GetItemByID(id string) (item *Item, ok bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	item, ok = s.itemsByIds[id]
+
+	return item, ok
 }
 
 func (s *Store) GetItemByPath(path string) (item *Item, ok bool) {
