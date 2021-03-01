@@ -96,6 +96,14 @@ var _ = Describe("Dropbox", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(folder.Name))
 		})
+
+		It("should get metadata for path using id", func() {
+			folder := createFolder()
+
+			md, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: folder.Id})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(folder.Name))
+		})
 	})
 
 	Describe("ListFolder", func() {
@@ -111,6 +119,14 @@ var _ = Describe("Dropbox", func() {
 			folder := createFolder()
 
 			result, err := client.ListFolder(context.Background(), &ListFolderArg{Path: "/" + folder.Name})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(result.Entries) == 0).To(BeTrue())
+		})
+
+		It("should list folder using id", func() {
+			folder := createFolder()
+
+			result, err := client.ListFolder(context.Background(), &ListFolderArg{Path: folder.Id})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(result.Entries) == 0).To(BeTrue())
 		})
@@ -149,6 +165,33 @@ var _ = Describe("Dropbox", func() {
 			dropboxErr, ok = IsDropboxError(err)
 			Expect(ok).To(BeTrue())
 			Expect(strings.Contains(dropboxErr.ErrorSummary, `Invalid "cursor"`)).To(BeTrue())
+		})
+
+		It("should continue folder listing using id", func() {
+			dir1, err := client.CreateFolder(context.Background(), &CreateFolderArg{Path: "/" + randomName()})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = client.CreateFolder(context.Background(), &CreateFolderArg{Path: "/" + dir1.Name + "/" + randomName()})
+			Expect(err).NotTo(HaveOccurred())
+
+			result, err := client.ListFolder(context.Background(), &ListFolderArg{Path: dir1.Id})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(result.Entries) > 0).To(BeTrue())
+
+			result, err = client.ListFolderContinue(context.Background(), &ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(result.Entries) >= 0).To(BeTrue())
+
+			_, err = client.Delete(context.Background(), &DeleteArg{Path: dir1.Id})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = client.ListFolderContinue(context.Background(), &ListFolderContinueArg{Cursor: result.Cursor})
+			Expect(err).To(HaveOccurred())
+
+			dropboxErr, ok := IsDropboxError(err)
+			Expect(ok).To(BeTrue())
+			Expect(dropboxErr.Err.Tag).To(Equal("path"))
+			Expect(dropboxErr.Err.Path.Tag).To(Equal("not_found"))
 		})
 
 		It("should get deleted items", func() {
@@ -222,7 +265,7 @@ var _ = Describe("Dropbox", func() {
 	})
 
 	Describe("Delete", func() {
-		It("should delete folder", func() {
+		It("should delete a folder", func() {
 			folder := createFolder()
 
 			md, err := client.Delete(context.Background(), &DeleteArg{Path: "/" + folder.Name})
@@ -231,6 +274,18 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.Tag).To(Equal("folder"))
 
 			_, err = client.GetMetadata(context.Background(), &GetMetadataArg{Path: "/" + folder.Name})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should delete a folder using id", func() {
+			folder := createFolder()
+
+			md, err := client.Delete(context.Background(), &DeleteArg{Path: folder.Id})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(folder.Name))
+			Expect(md.Tag).To(Equal("folder"))
+
+			_, err = client.GetMetadata(context.Background(), &GetMetadataArg{Path: folder.Id})
 			Expect(err).To(HaveOccurred())
 		})
 
@@ -246,7 +301,7 @@ var _ = Describe("Dropbox", func() {
 	})
 
 	Describe("Copy", func() {
-		It("should copy folder", func() {
+		It("should copy a folder", func() {
 			folder := createFolder()
 			newName := fmt.Sprintf("%d", rand.Int())
 
@@ -262,10 +317,27 @@ var _ = Describe("Dropbox", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(newName))
 		})
+
+		It("should copy a folder using id", func() {
+			folder := createFolder()
+			newName := fmt.Sprintf("%d", rand.Int())
+
+			md, err := client.Copy(context.Background(), &RelocationArg{FromPath: folder.Id, ToPath: "/" + newName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(newName))
+
+			md1, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: folder.Id})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md1.Name).To(Equal(folder.Name))
+
+			md2, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: md.Id})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md2.Name).To(Equal(newName))
+		})
 	})
 
 	Describe("Move", func() {
-		It("should move folder", func() {
+		It("should move a folder", func() {
 			folder := createFolder()
 			newName := fmt.Sprintf("%d", rand.Int())
 
@@ -279,6 +351,19 @@ var _ = Describe("Dropbox", func() {
 			md, err = client.GetMetadata(context.Background(), &GetMetadataArg{Path: "/" + newName})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(newName))
+		})
+
+		It("should move a folder using id", func() {
+			folder := createFolder()
+			newName := fmt.Sprintf("%d", rand.Int())
+
+			md, err := client.Move(context.Background(), &RelocationArg{FromPath: folder.Id, ToPath: "/" + newName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(newName))
+
+			md1, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: folder.Id})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md1.Name).To(Equal(newName))
 		})
 	})
 
@@ -326,6 +411,25 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.Name).To(Equal(name))
 
 			reader, md, err := client.Download(context.Background(), &DownloadArg{Path: "/" + name}, nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(name))
+			Expect(md.ETag).NotTo(Equal(""))
+			Expect(md.ContentLength).To(Equal(int64(5)))
+
+			data, _ := ioutil.ReadAll(reader)
+			reader.Close()
+
+			Expect(string(data)).To(Equal("12345"))
+		})
+
+		It("should download a file using id", func() {
+			name := fmt.Sprintf("new-file-%d", rand.Int())
+
+			md, err := upload(name)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(name))
+
+			reader, md, err := client.Download(context.Background(), &DownloadArg{Path: md.Id}, nil)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(name))
 			Expect(md.ETag).NotTo(Equal(""))
