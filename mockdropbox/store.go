@@ -40,6 +40,7 @@ type UploadSession struct {
 }
 
 func normalizePath(path string) string {
+	path = pathutils.NormalizeName(path)
 	if strings.HasSuffix(path, "/") {
 		return path[:len(path)-1]
 	}
@@ -144,6 +145,9 @@ func (s *Store) CreateFolder(parentItem *Item, path string) (item *Item, ok bool
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	path = pathutils.NormalizeName(path)
+
+	name := gopath.Base(path)
 	pathLower := pathToLower(path)
 
 	for _, child := range parentItem.Children {
@@ -155,7 +159,7 @@ func (s *Store) CreateFolder(parentItem *Item, path string) (item *Item, ok bool
 	md := &dropboxclient.Metadata{
 		Tag:       "folder",
 		Id:        generateId(),
-		Name:      gopath.Base(path),
+		Name:      name,
 		PathLower: pathLower,
 	}
 
@@ -179,6 +183,7 @@ func (s *Store) CreateFile(session *UploadSession, parentItem *Item, path string
 	data := session.Buffer.Bytes()
 	md5Bytes := md5.Sum(data)
 	hash := hex.EncodeToString(md5Bytes[:])
+	path = pathutils.NormalizeName(path)
 	parentPath := gopath.Dir(path)
 	pathLower := pathToLower(path)
 	name := gopath.Base(path)
@@ -286,6 +291,7 @@ func (s *Store) copyMetadata(md *dropboxclient.Metadata, newPath string) *dropbo
 	if md.Tag == dropboxclient.MetadataFile {
 		newModified = s.TimeNow()
 	}
+	newPath = pathutils.NormalizeName(newPath)
 	return &dropboxclient.Metadata{
 		Tag:            md.Tag,
 		Id:             generateId(),
@@ -299,6 +305,8 @@ func (s *Store) copyMetadata(md *dropboxclient.Metadata, newPath string) *dropbo
 func (s *Store) Copy(item *Item, newParentItem *Item, newPath string) *Item {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	newPath = pathutils.NormalizeName(newPath)
 
 	var cp func(item *Item, newParentItem *Item, newPath string) *Item
 	var copyChildren func(item *Item, newItem *Item)
@@ -329,6 +337,8 @@ func (s *Store) Copy(item *Item, newParentItem *Item, newPath string) *Item {
 func (s *Store) Move(item *Item, newParentItem *Item, newPath string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	newPath = pathutils.NormalizeName(newPath)
 
 	var mv func(item *Item, newParentItem *Item, newPath string)
 	var moveChildren func(item *Item)

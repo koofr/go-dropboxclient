@@ -79,6 +79,41 @@ var _ = Describe("Dropbox", func() {
 		return md
 	}
 
+	upload := func(name string) (res *Metadata, err error) {
+		session, err := client.UploadSessionStart(context.Background(), strings.NewReader("123"))
+		if err != nil {
+			return nil, err
+		}
+
+		err = client.UploadSessionAppend(context.Background(), &UploadSessionCursor{SessionId: session.SessionId, Offset: 3}, strings.NewReader("45"))
+		if err != nil {
+			return nil, err
+		}
+
+		finishArg := &UploadSessionFinishArg{
+			Cursor: &UploadSessionCursor{
+				SessionId: session.SessionId,
+				Offset:    5,
+			},
+			Commit: &CommitInfo{
+				Path: "/" + name,
+				Mode: &WriteMode{
+					Tag: WriteModeAdd,
+				},
+				Autorename:     false,
+				ClientModified: nil,
+				Mute:           false,
+			},
+		}
+
+		res, err = client.UploadSessionFinish(context.Background(), finishArg)
+		if err != nil {
+			return nil, err
+		}
+
+		return res, err
+	}
+
 	Describe("GetSpaceUsage", func() {
 		It("should get space usage", func() {
 			usage, err := client.GetSpaceUsage(context.Background())
@@ -89,7 +124,7 @@ var _ = Describe("Dropbox", func() {
 	})
 
 	Describe("GetMetadata", func() {
-		It("should get metadata for path", func() {
+		It("should get metadata for a path", func() {
 			folder := createFolder()
 
 			md, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: "/" + folder.Name})
@@ -97,12 +132,40 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.Name).To(Equal(folder.Name))
 		})
 
-		It("should get metadata for path using id", func() {
+		It("should get metadata for a path using id", func() {
 			folder := createFolder()
 
 			md, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: folder.Id})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(folder.Name))
+		})
+
+		It("should get folder metadata for a NFC/NFD path", func() {
+			suffix := fmt.Sprintf("%d", rand.Int())
+			nameNFC := "ö" + suffix
+			nameNFD := "ö" + suffix
+
+			md, err := client.CreateFolder(context.Background(), &CreateFolderArg{Path: "/" + nameNFD})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(nameNFC))
+
+			md1, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: "/" + nameNFC})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md1.Name).To(Equal(nameNFC))
+		})
+
+		It("should get file metadata for a NFC/NFD path", func() {
+			suffix := fmt.Sprintf("%d", rand.Int())
+			nameNFC := "ö" + suffix
+			nameNFD := "ö" + suffix
+
+			md, err := upload(nameNFD)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md.Name).To(Equal(nameNFC))
+
+			md1, err := client.GetMetadata(context.Background(), &GetMetadataArg{Path: "/" + nameNFC})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(md1.Name).To(Equal(nameNFC))
 		})
 	})
 
@@ -366,41 +429,6 @@ var _ = Describe("Dropbox", func() {
 			Expect(md1.Name).To(Equal(newName))
 		})
 	})
-
-	upload := func(name string) (res *Metadata, err error) {
-		session, err := client.UploadSessionStart(context.Background(), strings.NewReader("123"))
-		if err != nil {
-			return nil, err
-		}
-
-		err = client.UploadSessionAppend(context.Background(), &UploadSessionCursor{SessionId: session.SessionId, Offset: 3}, strings.NewReader("45"))
-		if err != nil {
-			return nil, err
-		}
-
-		finishArg := &UploadSessionFinishArg{
-			Cursor: &UploadSessionCursor{
-				SessionId: session.SessionId,
-				Offset:    5,
-			},
-			Commit: &CommitInfo{
-				Path: "/" + name,
-				Mode: &WriteMode{
-					Tag: WriteModeAdd,
-				},
-				Autorename:     false,
-				ClientModified: nil,
-				Mute:           false,
-			},
-		}
-
-		res, err = client.UploadSessionFinish(context.Background(), finishArg)
-		if err != nil {
-			return nil, err
-		}
-
-		return res, err
-	}
 
 	Describe("Download", func() {
 		It("should download a file", func() {
