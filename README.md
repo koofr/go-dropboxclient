@@ -1,5 +1,4 @@
-go-dropboxclient
-================
+# go-dropboxclient
 
 Go Dropbox client.
 
@@ -7,4 +6,12 @@ Go Dropbox client.
 
 ## Install
 
-    go get github.com/koofr/go-dropboxclient
+```sh
+go get github.com/koofr/go-dropboxclient
+```
+
+## Test
+
+```sh
+DROPBOX_ACCESS_TOKEN=mock DROPBOX_USE_MOCK=true go test ./...
+```
