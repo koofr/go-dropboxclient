@@ -16,7 +16,7 @@ import (
 	"github.com/koofr/go-dropboxclient/mockdropbox"
 	"github.com/koofr/go-ioutils"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
