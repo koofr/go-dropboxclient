@@ -210,6 +210,10 @@ func (s *Store) CreateFile(session *UploadSession, parentItem *Item, path string
 			return nil, false, true
 		}
 		newItem = existingItem
+		if mode == dropboxclient.WriteModeOverwrite {
+			// dropbox renames the file to the case of the requested path
+			newItem.Metadata.Name = name
+		}
 		newItem.Metadata.ClientModified = clientModified
 		newItem.Metadata.ServerModified = modified
 		newItem.Metadata.Rev = rev
@@ -299,6 +303,8 @@ func (s *Store) copyMetadata(md *dropboxclient.Metadata, newPath string) *dropbo
 		PathLower:      pathToLower(newPath),
 		ClientModified: md.ClientModified,
 		ServerModified: newModified,
+		Rev:            randomString(),
+		Size:           md.Size,
 	}
 }
 
@@ -316,6 +322,8 @@ func (s *Store) Copy(item *Item, newParentItem *Item, newPath string) *Item {
 			Metadata: s.copyMetadata(item.Metadata, newPath),
 			ParentId: newParentItem.Metadata.Id,
 			Children: []*Item{},
+			Data:     item.Data,
+			Hash:     item.Hash,
 			ChangeID: s.nextChangeID(),
 		}
 		s.itemsByIds[newItem.Metadata.Id] = newItem
