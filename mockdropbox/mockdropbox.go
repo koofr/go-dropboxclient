@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	gopath "path"
@@ -116,17 +115,17 @@ func (d *MockDropbox) buildCursor(id string, recursive bool, lastChangeID int64)
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-func (d *MockDropbox) invalidCursor(w http.ResponseWriter) {
-	d.res(w, http.StatusConflict, &dropboxclient.DropboxError{
-		ErrorSummary: "path/not_found/..",
-		Err: dropboxclient.DropboxErrorDetails{
-			Tag: "path",
-			Path: &dropboxclient.LookupError{
-				Tag: "not_found",
-			},
-		},
-	})
-}
+// func (d *MockDropbox) invalidCursor(w http.ResponseWriter) {
+// 	d.res(w, http.StatusConflict, &dropboxclient.DropboxError{
+// 		ErrorSummary: "path/not_found/..",
+// 		Err: dropboxclient.DropboxErrorDetails{
+// 			Tag: "path",
+// 			Path: &dropboxclient.LookupError{
+// 				Tag: "not_found",
+// 			},
+// 		},
+// 	})
+// }
 
 func (d *MockDropbox) parseCursor(w http.ResponseWriter, cursor string) (c *Cursor, ok bool) {
 	data, err := base64.StdEncoding.DecodeString(cursor)
@@ -144,7 +143,7 @@ func (d *MockDropbox) parseCursor(w http.ResponseWriter, cursor string) (c *Curs
 }
 
 func (d *MockDropbox) arg(w http.ResponseWriter, r *http.Request, v interface{}) bool {
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("arg read error: %s", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -203,7 +202,9 @@ func (d *MockDropbox) res(w http.ResponseWriter, statusCode int, v interface{}) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }
 
 func (d *MockDropbox) headerRes(w http.ResponseWriter, v interface{}) bool {
@@ -591,5 +592,7 @@ func (d *MockDropbox) FilesDownload(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	io.Copy(w, reader)
+	if _, err := io.Copy(w, reader); err != nil {
+		log.Printf("failed to copy bytes to response: %v", err)
+	}
 }

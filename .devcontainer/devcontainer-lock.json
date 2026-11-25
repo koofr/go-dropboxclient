@@ -1,0 +1,24 @@
+{
+  "features": {
+    "ghcr.io/devcontainers-extra/features/act:1": {
+      "version": "1.0.15",
+      "resolved": "ghcr.io/devcontainers-extra/features/act@sha256:db4a2194930d1f7ec62822d4f600dd2fa4aff3c33b98cdb0b578b64ffb10924c",
+      "integrity": "sha256:db4a2194930d1f7ec62822d4f600dd2fa4aff3c33b98cdb0b578b64ffb10924c"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "version": "2.7.2",
+      "resolved": "ghcr.io/devcontainers/features/common-utils@sha256:08e5a6ad4b672301c2010944217aeea4f428a87f4349d9bbf8bc97211238674b",
+      "integrity": "sha256:08e5a6ad4b672301c2010944217aeea4f428a87f4349d9bbf8bc97211238674b"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.4.1",
+      "resolved": "ghcr.io/devcontainers/features/go@sha256:2f2ed290df9a5f1841340b14cb8a287cf0574a816967dd84dcfe42fdd97b897e",
+      "integrity": "sha256:2f2ed290df9a5f1841340b14cb8a287cf0574a816967dd84dcfe42fdd97b897e"
+    },
+    "ghcr.io/overlordtm/devcontainer-features/manage-packages:0": {
+      "version": "0.0.1",
+      "resolved": "ghcr.io/overlordtm/devcontainer-features/manage-packages@sha256:9f074749258a12b31c1901ea488ff3beed251e557e9145a812168529ba4cfdb6",
+      "integrity": "sha256:9f074749258a12b31c1901ea488ff3beed251e557e9145a812168529ba4cfdb6"
+    }
+  }
+}
