@@ -284,7 +284,7 @@ func (c *Dropbox) Download(ctx context.Context, arg *DownloadArg, span *ioutils.
 	result = &Metadata{}
 
 	if err = c.getApiResult(res, result); err != nil {
-		res.Body.Close()
+		_ = res.Body.Close()
 		return nil, nil, err
 	}
 

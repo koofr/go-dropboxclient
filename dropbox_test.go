@@ -3,14 +3,13 @@ package dropboxclient_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	. "github.com/koofr/go-dropboxclient"
 	"github.com/koofr/go-dropboxclient/mockdropbox"
@@ -25,6 +24,8 @@ type listResultPair struct {
 	path string
 }
 
+var testRng *rand.Rand
+
 func listResultPairs(result *ListFolderResult) []listResultPair {
 	pairs := []listResultPair{}
 	for _, md := range result.Entries {
@@ -32,6 +33,10 @@ func listResultPairs(result *ListFolderResult) []listResultPair {
 	}
 	return pairs
 }
+
+var _ = BeforeSuite(func() {
+	testRng = rand.New(rand.NewSource(GinkgoRandomSeed()))
+})
 
 var _ = Describe("Dropbox", func() {
 	var client *Dropbox
@@ -47,8 +52,6 @@ var _ = Describe("Dropbox", func() {
 	var mockServer *httptest.Server
 
 	BeforeEach(func() {
-		rand.Seed(time.Now().UnixNano())
-
 		client = NewDropbox(accessToken)
 
 		if useMock {
@@ -66,7 +69,7 @@ var _ = Describe("Dropbox", func() {
 	})
 
 	var randomName = func() string {
-		return fmt.Sprintf("%d", rand.Int())
+		return fmt.Sprintf("%d", testRng.Int())
 	}
 
 	var createFolder = func() *Metadata {
@@ -141,7 +144,7 @@ var _ = Describe("Dropbox", func() {
 		})
 
 		It("should get folder metadata for a NFC/NFD path", func() {
-			suffix := fmt.Sprintf("%d", rand.Int())
+			suffix := fmt.Sprintf("%d", testRng.Int())
 			nameNFC := "ö" + suffix
 			nameNFD := "ö" + suffix
 
@@ -155,7 +158,7 @@ var _ = Describe("Dropbox", func() {
 		})
 
 		It("should get file metadata for a NFC/NFD path", func() {
-			suffix := fmt.Sprintf("%d", rand.Int())
+			suffix := fmt.Sprintf("%d", testRng.Int())
 			nameNFC := "ö" + suffix
 			nameNFD := "ö" + suffix
 
@@ -366,7 +369,7 @@ var _ = Describe("Dropbox", func() {
 	Describe("Copy", func() {
 		It("should copy a folder", func() {
 			folder := createFolder()
-			newName := fmt.Sprintf("%d", rand.Int())
+			newName := fmt.Sprintf("%d", testRng.Int())
 
 			md, err := client.Copy(context.Background(), &RelocationArg{FromPath: "/" + folder.Name, ToPath: "/" + newName})
 			Expect(err).NotTo(HaveOccurred())
@@ -383,7 +386,7 @@ var _ = Describe("Dropbox", func() {
 
 		It("should copy a folder using id", func() {
 			folder := createFolder()
-			newName := fmt.Sprintf("%d", rand.Int())
+			newName := fmt.Sprintf("%d", testRng.Int())
 
 			md, err := client.Copy(context.Background(), &RelocationArg{FromPath: folder.Id, ToPath: "/" + newName})
 			Expect(err).NotTo(HaveOccurred())
@@ -402,7 +405,7 @@ var _ = Describe("Dropbox", func() {
 	Describe("Move", func() {
 		It("should move a folder", func() {
 			folder := createFolder()
-			newName := fmt.Sprintf("%d", rand.Int())
+			newName := fmt.Sprintf("%d", testRng.Int())
 
 			md, err := client.Move(context.Background(), &RelocationArg{FromPath: "/" + folder.Name, ToPath: "/" + newName})
 			Expect(err).NotTo(HaveOccurred())
@@ -418,7 +421,7 @@ var _ = Describe("Dropbox", func() {
 
 		It("should move a folder using id", func() {
 			folder := createFolder()
-			newName := fmt.Sprintf("%d", rand.Int())
+			newName := fmt.Sprintf("%d", testRng.Int())
 
 			md, err := client.Move(context.Background(), &RelocationArg{FromPath: folder.Id, ToPath: "/" + newName})
 			Expect(err).NotTo(HaveOccurred())
@@ -432,7 +435,7 @@ var _ = Describe("Dropbox", func() {
 
 	Describe("Download", func() {
 		It("should download a file", func() {
-			name := fmt.Sprintf("new-file-%d", rand.Int())
+			name := fmt.Sprintf("new-file-%d", testRng.Int())
 
 			md, err := upload(name)
 			Expect(err).NotTo(HaveOccurred())
@@ -444,14 +447,15 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.ETag).NotTo(Equal(""))
 			Expect(md.ContentLength).To(Equal(int64(5)))
 
-			data, _ := ioutil.ReadAll(reader)
-			reader.Close()
+			data, _ := io.ReadAll(reader)
+			err = reader.Close()
+			Expect(err).NotTo(HaveOccurred())
 
 			Expect(string(data)).To(Equal("12345"))
 		})
 
 		It("should download a file using id", func() {
-			name := fmt.Sprintf("new-file-%d", rand.Int())
+			name := fmt.Sprintf("new-file-%d", testRng.Int())
 
 			md, err := upload(name)
 			Expect(err).NotTo(HaveOccurred())
@@ -463,28 +467,31 @@ var _ = Describe("Dropbox", func() {
 			Expect(md.ETag).NotTo(Equal(""))
 			Expect(md.ContentLength).To(Equal(int64(5)))
 
-			data, _ := ioutil.ReadAll(reader)
-			reader.Close()
+			data, _ := io.ReadAll(reader)
+			err = reader.Close()
+			Expect(err).NotTo(HaveOccurred())
 
 			Expect(string(data)).To(Equal("12345"))
 		})
 
 		It("should download a file range", func() {
-			name := fmt.Sprintf("new-file-%d", rand.Int())
+			name := fmt.Sprintf("new-file-%d", testRng.Int())
 
 			md, err := upload(name)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(name))
 			_ = ioutils.FileSpan{}
 
-			reader, md, err := client.Download(context.Background(), &DownloadArg{Path: "/" + name}, &ioutils.FileSpan{2, 3})
+			reader, md, err := client.Download(context.Background(), &DownloadArg{Path: "/" + name}, &ioutils.FileSpan{Start: 2, End: 3})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(md.Name).To(Equal(name))
 			Expect(md.ETag).NotTo(Equal(""))
 			Expect(md.ContentLength).To(Equal(int64(2)))
 
-			data, _ := ioutil.ReadAll(reader)
-			reader.Close()
+			data, err := io.ReadAll(reader)
+			Expect(err).NotTo(HaveOccurred())
+			err = reader.Close()
+			Expect(err).NotTo(HaveOccurred())
 
 			Expect(string(data)).To(Equal("34"))
 		})
@@ -492,7 +499,7 @@ var _ = Describe("Dropbox", func() {
 
 	Describe("Upload", func() {
 		It("should upload a file", func() {
-			name := fmt.Sprintf("new-file-%d", rand.Int())
+			name := fmt.Sprintf("new-file-%d", testRng.Int())
 
 			md, err := upload(name)
 			Expect(err).NotTo(HaveOccurred())
